@@ -333,6 +333,9 @@ function brandFileFor(provider) {
       return "nous.svg"
     case "opencode-go":
       return "opencode.svg"
+    case "ollama":
+    case "ollama-local":
+      return "ollama.svg"
     default:
       return ""
   }
@@ -863,7 +866,7 @@ function headline(entry, barWindow) {
   var sections = entry.sections || []
   for (var j = 0; j < sections.length; j++) {
     var row = sections[j]
-    if (row.type === "text" && /(balance|available|spend|prepaid)/i.test(row.label) && row.value !== "")
+    if (row.type === "text" && /(balance|available|spend|prepaid|tokens)/i.test(row.label) && row.value !== "")
       return { text: row.value, percent: null, severity: "low", label: row.label }
   }
   return { text: entry.status === "error" ? "Error" : "Ready", percent: null, severity: "low", label: "" }
