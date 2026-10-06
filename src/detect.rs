@@ -80,6 +80,15 @@ pub fn has_local_credentials(vendor: VendorId, config: &Config) -> bool {
             };
             crate::kiro::db::read_credentials(&path).is_ok()
         }
+        // A parseable Google login, or — for API-key users, who have none —
+        // at least one Gemini CLI session log to tally.
+        VendorId::Gemini => {
+            crate::gemini::creds::path_for(&config.gemini)
+                .and_then(|path| crate::gemini::creds::read_from(&path))
+                .is_ok()
+                || crate::gemini::local::logs_dir_for(&config.gemini)
+                    .is_ok_and(|dir| crate::gemini::local::has_session_logs(&dir))
+        }
         VendorId::NousResearch => {
             // `read_unlocked`, not `read`: the latter takes the store lock,
             // which creates the lock file and a 0700 config dir as a side

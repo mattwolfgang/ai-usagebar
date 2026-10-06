@@ -387,7 +387,7 @@ assert.equal(model.brandIconFile({id: 'anthropic', brand: 'openai'}), 'openai.sv
 const slugs = [
   'anthropic', 'anthropic_api', 'openai', 'copilot', 'zai', 'openrouter',
   'deepseek', 'kimi', 'kilo', 'novita', 'moonshot', 'grok', 'supergrok', 'grokbot',
-  'antigravity', 'cursor', 'minimax', 'kiro', 'nous', 'opencode-go', 'commandcode'
+  'antigravity', 'cursor', 'minimax', 'kiro', 'gemini', 'nous', 'opencode-go', 'commandcode'
 ];
 const byMark = {};
 for (const slug of slugs) {

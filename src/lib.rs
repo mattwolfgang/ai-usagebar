@@ -31,6 +31,7 @@ pub mod detect;
 pub mod display;
 pub mod error;
 pub mod format;
+pub mod gemini;
 pub mod grok;
 pub mod grokbot;
 /// Source-scanning helpers for structural guard tests. Test-only.

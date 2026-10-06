@@ -911,6 +911,13 @@ async fn build_outcome(client: &Client, config: &Config, tab: &TabId) -> Result<
                 crate::kiro::fetch_snapshot(client, &db_path, &cache, DEFAULT_TTL).await?;
             Ok(outcome.into())
         }
+        VendorId::Gemini => {
+            let cache = crate::cache::Cache::for_vendor("gemini")?;
+            let source = crate::gemini::fetch::Source::from_config(&config.gemini)?;
+            let outcome =
+                crate::gemini::fetch_snapshot(client, &source, &cache, DEFAULT_TTL).await?;
+            Ok(outcome.into())
+        }
         VendorId::NousResearch => {
             let store = crate::nous::credentials::CredentialStore::default();
             let endpoints = crate::nous::fetch::Endpoints::default();

@@ -174,6 +174,7 @@ pub enum VendorId {
     Cursor,
     Minimax,
     Kiro,
+    Gemini,
     #[serde(rename = "nous")]
     NousResearch,
     #[serde(rename = "opencode-go")]
@@ -232,6 +233,7 @@ impl VendorId {
             VendorId::Cursor => "cursor",
             VendorId::Minimax => "minimax",
             VendorId::Kiro => "kiro",
+            VendorId::Gemini => "gemini",
             VendorId::NousResearch => "nous",
             VendorId::OpenCodeGo => "opencode-go",
             VendorId::CommandCode => "commandcode",
@@ -265,6 +267,7 @@ impl VendorId {
             VendorId::Cursor => "Cursor",
             VendorId::Minimax => "MiniMax",
             VendorId::Kiro => "Kiro",
+            VendorId::Gemini => "Gemini",
             VendorId::NousResearch => "Nous Research",
             VendorId::OpenCodeGo => "OpenCode Go",
             VendorId::CommandCode => "Command Code",
@@ -297,6 +300,8 @@ impl VendorId {
             VendorId::Cursor => "❯",
             VendorId::Minimax => VendorId::Minimax.short_name(),
             VendorId::Kiro => "◆",
+            // Nerd Font `nf-md-google`; no Gemini mark is in the common sets.
+            VendorId::Gemini => "󰊭",
             VendorId::NousResearch => VendorId::NousResearch.short_name(),
             VendorId::OpenCodeGo => VendorId::OpenCodeGo.short_name(),
             VendorId::CommandCode => VendorId::CommandCode.short_name(),
@@ -335,6 +340,7 @@ impl VendorId {
             VendorId::Cursor => "cur",
             VendorId::Minimax => "mmx",
             VendorId::Kiro => "kir",
+            VendorId::Gemini => "gem",
             VendorId::NousResearch => "nrs",
             VendorId::OpenCodeGo => "ocg",
             VendorId::CommandCode => "cmc",
@@ -372,6 +378,7 @@ impl VendorId {
             VendorId::Cursor => "cursor",
             VendorId::Minimax => "minimax",
             VendorId::Kiro => "kiro",
+            VendorId::Gemini => "gemini",
             VendorId::NousResearch => "nous",
             VendorId::OpenCodeGo => "opencode-go",
             VendorId::CommandCode => "commandcode",
@@ -392,7 +399,8 @@ impl VendorId {
             | VendorId::Openai
             | VendorId::Copilot
             | VendorId::NousResearch
-            | VendorId::CommandCode => AuthKind::Oauth,
+            | VendorId::CommandCode
+            | VendorId::Gemini => AuthKind::Oauth,
             VendorId::AnthropicApi
             | VendorId::Zai
             | VendorId::Openrouter
@@ -455,6 +463,7 @@ impl VendorId {
             | VendorId::Antigravity
             | VendorId::Cursor
             | VendorId::Kiro
+            | VendorId::Gemini
             | VendorId::NousResearch
             | VendorId::ModelStudio => "",
         }
@@ -478,6 +487,7 @@ impl VendorId {
             VendorId::Openai => "Run `codex login` in a terminal, then Refresh.",
             VendorId::Copilot => "Run `gh auth login` in a terminal, then Refresh.",
             VendorId::Kiro => "Run `kiro-cli login` in a terminal, then Refresh.",
+            VendorId::Gemini => "Run `gemini` once (Google login or API key), then Refresh.",
             VendorId::Kimi => "Run `kimi` in a terminal, or set an API key.",
             VendorId::CommandCode => "Run `commandcode` in a terminal, then Refresh.",
             VendorId::NousResearch => {
@@ -518,6 +528,8 @@ impl VendorId {
             VendorId::CommandCode => "commandcode",
             VendorId::NousResearch => "ai-usagebar auth nous login",
             VendorId::Kiro => "kiro-cli login",
+            // The Gemini CLI signs in from its own first-run prompt.
+            VendorId::Gemini => "gemini",
             // The `bl` CLI's console login is the whole credential.
             VendorId::ModelStudio => "bl auth login --console",
             // Kimi takes a key *or* the Kimi Code CLI's own OAuth login, which
@@ -564,6 +576,7 @@ impl VendorId {
             VendorId::Cursor,
             VendorId::Minimax,
             VendorId::Kiro,
+            VendorId::Gemini,
             VendorId::NousResearch,
             VendorId::OpenCodeGo,
             VendorId::CommandCode,

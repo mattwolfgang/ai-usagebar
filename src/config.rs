@@ -11,6 +11,7 @@
 //! [deepinfra]  enabled = false
 //! [kimi]       enabled = false
 //! [grokbot]    enabled = false  # Grok Bot desktop app's own session
+//! [gemini]     enabled = false  # Gemini CLI's own Google login
 //! [modelstudio] enabled = false # `bl` CLI's own console login (Token Plan)
 //! [[custom]]   id = "mytool"   # user-defined HTTP provider, static token
 //! ```
@@ -64,6 +65,7 @@ pub struct Config {
     pub cursor: CursorConfig,
     pub minimax: MinimaxConfig,
     pub kiro: KiroConfig,
+    pub gemini: GeminiConfig,
     pub nous: NousConfig,
     #[serde(rename = "opencode-go")]
     pub opencode_go: OpenCodeGoConfig,
@@ -1617,6 +1619,55 @@ pub struct KiroConfig {
     pub db_path: Option<PathBuf>,
 }
 
+/// Gemini CLI reads per-model quota through the Google session the Gemini CLI
+/// saved after "Login with Google" (`~/.gemini/oauth_creds.json`).
+///
+/// Opt-in (`enabled` defaults to `false`): calls the undocumented Cloud Code
+/// quota route with another program's session, so it stays off until the user
+/// turns it on.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub struct GeminiConfig {
+    pub enabled: bool,
+    /// Which source to read: Google's quota for a "Login with Google" session,
+    /// or a tally of the CLI's local session logs for API-key users. `auto`
+    /// uses Google when the CLI's credential file exists.
+    pub mode: GeminiMode,
+    /// Override the Gemini CLI's credential file (defaults to
+    /// `~/.gemini/oauth_creds.json` — see `gemini::creds::default_path`).
+    pub creds_path: Option<PathBuf>,
+    /// Google Cloud project for Code Assist Standard/Enterprise accounts,
+    /// which have no managed project. Falls back to `GOOGLE_CLOUD_PROJECT`,
+    /// the variable the Gemini CLI itself reads. Free and Google AI plans need
+    /// neither.
+    pub project: Option<String>,
+    /// OAuth client id used to refresh the CLI's session. Like Antigravity's,
+    /// nothing is embedded in source: without both halves the CLI's access
+    /// token is used only until it expires, and the next `gemini` run renews it.
+    pub oauth_client_id: Option<String>,
+    /// OAuth client secret paired with `oauth_client_id`. An installed-app
+    /// secret is not confidential by Google's definition, but it is still
+    /// treated as an inline credential for file-permission purposes.
+    pub oauth_client_secret: Option<String>,
+    /// Override the CLI's session-log directory for the local tally (defaults
+    /// to `~/.gemini/tmp` — see `gemini::local::default_logs_dir`).
+    pub logs_dir: Option<PathBuf>,
+    /// Daily request limit per model id, for the local tally only: an API key
+    /// cannot read its own limits, so a percentage needs them stated here.
+    /// `[gemini.daily_limits]` `"gemini-2.5-flash" = 250`.
+    pub daily_limits: BTreeMap<String, u64>,
+}
+
+/// `[gemini] mode`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GeminiMode {
+    #[default]
+    Auto,
+    Google,
+    Local,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct AnthropicApiConfig {
@@ -2074,6 +2125,8 @@ impl Config {
         expand_tilde_opt(&mut self.cursor.db_path);
         expand_tilde_opt(&mut self.cursor.agent_auth_path);
         expand_tilde_opt(&mut self.kiro.db_path);
+        expand_tilde_opt(&mut self.gemini.creds_path);
+        expand_tilde_opt(&mut self.gemini.logs_dir);
         expand_tilde_opt(&mut self.kimi.credentials_path);
         expand_tilde_opt(&mut self.grokbot.secrets_path);
         expand_tilde_opt(&mut self.modelstudio.config_dir);
@@ -2108,6 +2161,7 @@ impl Config {
             self.opencode_go.api_key.as_deref(),
             self.orcarouter.api_key.as_deref(),
             self.antigravity.oauth_client_secret.as_deref(),
+            self.gemini.oauth_client_secret.as_deref(),
         ]
         .into_iter()
         .chain(
@@ -2182,6 +2236,7 @@ impl Config {
             VendorId::Cursor => self.cursor.enabled,
             VendorId::Minimax => self.minimax.enabled,
             VendorId::Kiro => self.kiro.enabled,
+            VendorId::Gemini => self.gemini.enabled,
             VendorId::NousResearch => self.nous.enabled,
             VendorId::OpenCodeGo => self.opencode_go.enabled,
             VendorId::CommandCode => self.commandcode.enabled,
@@ -2223,6 +2278,7 @@ impl Config {
             | VendorId::Antigravity
             | VendorId::Cursor
             | VendorId::Kiro
+            | VendorId::Gemini
             | VendorId::NousResearch
             | VendorId::CommandCode
             | VendorId::ModelStudio => id.api_key_env(),
@@ -2256,6 +2312,7 @@ impl Config {
             | VendorId::Antigravity
             | VendorId::Cursor
             | VendorId::Kiro
+            | VendorId::Gemini
             | VendorId::NousResearch
             | VendorId::CommandCode
             | VendorId::ModelStudio => None,
@@ -2861,6 +2918,7 @@ mod tests {
             VendorId::Cursor,
             VendorId::Minimax,
             VendorId::Kiro,
+            VendorId::Gemini,
             VendorId::CommandCode,
             VendorId::OrcaRouter,
             VendorId::ModelStudio,
@@ -4574,6 +4632,30 @@ enabled = false
         let c = Config::load_from(f.path()).unwrap();
         assert!(c.is_enabled(VendorId::Kiro));
         assert!(c.enabled_vendors().contains(&VendorId::Kiro));
+    }
+
+    #[test]
+    fn gemini_section_parses_mode_and_daily_limits() {
+        let f = write_toml(
+            r#"
+            [gemini]
+            enabled = true
+            mode = "local"
+            [gemini.daily_limits]
+            "gemini-2.5-flash" = 250
+            "gemini-2.5-pro" = 100
+            "#,
+        );
+        let c = Config::load_from(f.path()).unwrap();
+        assert!(c.is_enabled(VendorId::Gemini));
+        assert_eq!(c.gemini.mode, GeminiMode::Local);
+        assert_eq!(c.gemini.daily_limits.get("gemini-2.5-flash"), Some(&250));
+        assert_eq!(c.gemini.daily_limits.len(), 2);
+
+        let bare = write_toml("[gemini]\nenabled = true\n");
+        let bare = Config::load_from(bare.path()).unwrap();
+        assert_eq!(bare.gemini.mode, GeminiMode::Auto);
+        assert!(bare.gemini.daily_limits.is_empty());
     }
 
     #[test]

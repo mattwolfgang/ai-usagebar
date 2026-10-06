@@ -20,7 +20,7 @@ metrics expand to an empty string unless noted otherwise.
 | Cursor | `cur` | MiniMax | `mmx` |
 | Kiro CLI | `kir` | Nous Research | `nrs` |
 | OpenCode Go | `ocg` | Command Code | `cmc` |
-| Ollama Cloud | `oll` | | |
+| Ollama Cloud | `oll` | Gemini CLI | `gem` |
 
 The same codes ride the `ai-usagebar usage --json` report as each entry's
 `short_name`, so a native frontend can draw a Waybar-style provider tag without
@@ -30,7 +30,8 @@ Use `{session_pct}`, `{session_reset}`, `{weekly_pct}`, and `{weekly_reset}`
 when one format must work across providers. Providers without matching time
 windows return neutral values. Cursor maps Cursor Models to the session slot
 and Other Models to the weekly slot; both reset with the billing cycle. Kiro
-has one pool, so it maps `kiro_pct` to both percentage slots.
+has one pool, so it maps `kiro_pct` to both percentage slots. Gemini maps its
+most-consumed model bucket (`gemini_pct`) to both.
 
 Claude and Codex also provide `*_elapsed`, `*_pace`, and `*_bar` families.
 Z.AI, MiniMax, and OpenCode Go provide elapsed aliases plus provider-specific pace families.
@@ -353,6 +354,32 @@ through the documented AWS SSO OIDC `CreateToken` API and stores refreshed or
 rotated credentials in an account-scoped `kiro/oauth.json` file. That file is
 mode `0600` on Unix. kiro-cli's database is opened read-only and is never
 modified.
+
+## Gemini CLI
+
+`{gemini_plan}`, `{gemini_pct}`, `{gemini_model}`, `{gemini_reset}`,
+`{gemini_pro_pct}`, `{gemini_flash_pct}`, `{gemini_requests}`, `{gemini_tokens}`
+
+The Gemini CLI's request quota is one bucket per model, from the Cloud Code
+`retrieveUserQuota` call the CLI itself makes. `{gemini_pct}`, `{gemini_model}`
+and `{gemini_reset}` describe the most-consumed bucket, the one that will stop
+you first. `{gemini_pro_pct}` and `{gemini_flash_pct}` are the first Pro and
+Flash (not Flash-Lite) buckets, empty when the account has none. The default
+format is `{gemini_pct}%`; `{session_pct}` and `{weekly_pct}` alias the
+most-consumed bucket, and `{plan}` aliases the Code Assist tier.
+
+Only a "Login with Google" session has a quota Google will report. For an API
+key, which reaches no quota surface, the provider instead counts today's
+requests and tokens per model from the CLI's own session logs on this machine;
+`{gemini_requests}` and `{gemini_tokens}` are those totals across models, and
+`{plan}` is `API key`. The day runs midnight to midnight Pacific, Google's quota
+day. A model listed in `[gemini.daily_limits]` gets a percentage of its limit;
+with none configured, `{gemini_pct}` is empty and the default format is
+`{gemini_requests} req`. For a Google login, the
+CLI's access token lasts about an hour. With `[gemini] oauth_client_id` and
+`oauth_client_secret` set, ai-usagebar refreshes it and keeps the result in an
+account-scoped `gemini/oauth.json` file (mode `0600` on Unix); without them,
+the next `gemini` run renews it. `~/.gemini/oauth_creds.json` is never modified.
 
 ## Command Code
 

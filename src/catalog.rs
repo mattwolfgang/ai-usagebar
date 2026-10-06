@@ -167,6 +167,15 @@ fn credential_present(cfg: &Config, id: VendorId, probes: &Probes) -> bool {
                 .clone()
                 .map_or_else(crate::kiro::db::default_db_path, Ok)],
         ),
+        // The Gemini CLI's own Google-login file, or its session-log directory
+        // for API-key users (tallied locally).
+        VendorId::Gemini => any_exists(
+            probes,
+            [
+                crate::gemini::creds::path_for(&cfg.gemini),
+                crate::gemini::local::logs_dir_for(&cfg.gemini),
+            ],
+        ),
         // SuperGrok rides the Grok Build CLI's own login; its executable is the
         // only local artifact, and config pins the trusted path.
         VendorId::Supergrok => (probes.exists)(&cfg.supergrok.grok_binary),

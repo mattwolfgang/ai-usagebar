@@ -382,6 +382,16 @@ pub fn compact_cells(snapshot: &VendorSnapshot) -> (String, Vec<(String, PaceSev
             ],
         ),
         VendorSnapshot::Kiro(s) => (s.plan.clone(), vec![pct("credits", s.pct())]),
+        // The worst bucket only: one model row per cell would crowd out the
+        // Overview, and the worst is the one that stops the user first.
+        VendorSnapshot::Gemini(s) => {
+            // A local tally with no limits has a count, not a percentage.
+            let cell = match s.worst() {
+                Some(m) => pct(&m.model, m.utilization_pct.unwrap_or(0)),
+                None => (format!("{} req", s.total_requests()), PaceSeverity::Low),
+            };
+            (s.plan.clone(), vec![cell])
+        }
         VendorSnapshot::NousResearch(s) => {
             let cell = s
                 .usage_percent()
@@ -485,6 +495,7 @@ pub fn headline_pct(snapshot: &VendorSnapshot) -> Option<i32> {
         VendorSnapshot::Cursor(s) => (!s.unlimited).then_some(s.total_pct),
         VendorSnapshot::Minimax(s) => Some(s.session.utilization_pct.max(s.weekly.utilization_pct)),
         VendorSnapshot::Kiro(s) => Some(s.pct()),
+        VendorSnapshot::Gemini(s) => s.worst_pct(),
         VendorSnapshot::NousResearch(s) => {
             s.usage_percent().map(|value| i32::from(clamp_pct(value)))
         }
@@ -604,6 +615,7 @@ pub(crate) fn sections_with_metadata_for(
                 VendorSnapshot::Cursor(s) => cursor_sections(s, now),
                 VendorSnapshot::Minimax(s) => minimax_sections(s, now, pace_tolerance),
                 VendorSnapshot::Kiro(s) => kiro_sections(s, now),
+                VendorSnapshot::Gemini(s) => gemini_sections(s, now),
                 VendorSnapshot::NousResearch(s) => nous_sections(s, now),
                 VendorSnapshot::OpenCodeGo(s) => opencode_go_sections(s, now, pace_tolerance),
                 VendorSnapshot::CommandCode(s) => commandcode_sections(s, now),
@@ -1352,6 +1364,66 @@ fn kiro_sections(s: &crate::usage::KiroSnapshot, now: DateTime<Utc>) -> SectionB
         label: "Resets".into(),
         value: countdown::format(s.reset_at, now),
     });
+    v
+}
+
+/// One gauge per model bucket, each with its own reset: the buckets reset
+/// independently, and Google states no window length, so the reset rides as
+/// plain metadata (`push_metric`) rather than a paced window.
+fn gemini_sections(s: &crate::usage::GeminiSnapshot, now: DateTime<Utc>) -> SectionBuilder {
+    let title = if s.plan.is_empty() {
+        "Gemini".to_string()
+    } else {
+        format!("Gemini {}", s.plan)
+    };
+    let mut v = SectionBuilder::new(vec![
+        Section::Title {
+            left: title,
+            right: None,
+        },
+        Section::Spacer,
+    ]);
+    let reset = |m: &crate::usage::GeminiModelQuota| countdown::format(m.resets_at, now);
+    for m in &s.models {
+        let tally = crate::gemini::vendor::tally(m);
+        // A local model with no configured limit is a count, not a gauge.
+        let Some(pct) = m.utilization_pct else {
+            v.push(Section::Text {
+                label: m.model.clone(),
+                value: format!("{tally} · resets {}", reset(m)),
+            });
+            continue;
+        };
+        let pct = pct.clamp(0, 100);
+        let counts = match (m.remaining, m.limit) {
+            (Some(remaining), Some(limit)) => format!("{remaining} of {limit} left · "),
+            (Some(remaining), None) => format!("{remaining} left · "),
+            _ => String::new(),
+        };
+        v.push_metric(
+            Section::Metric {
+                label: m.model.clone(),
+                pct: pct as u16,
+                severity: severity_for(pct),
+                value_label: format!("{pct}%"),
+                footnote: format!("{counts}resets {}", reset(m)),
+            },
+            m.resets_at,
+        );
+    }
+    if s.models.is_empty() {
+        v.push(Section::Text {
+            label: "Today".into(),
+            value: "No requests yet".into(),
+        });
+    }
+    if s.source == crate::usage::GeminiSource::Local {
+        v.push(Section::Spacer);
+        v.push(Section::Text {
+            label: "Source".into(),
+            value: "This machine's Gemini CLI logs".into(),
+        });
+    }
     v
 }
 

@@ -9,6 +9,31 @@ Each release is also published at
 
 ## [Unreleased]
 
+### Added
+
+- **Gemini CLI provider (`[gemini]`, opt-in).** Reports each model's request
+  quota — percent used, requests left when the bucket states them, and its own
+  reset — from the Cloud Code `loadCodeAssist` + `retrieveUserQuota` calls the
+  Gemini CLI itself makes. Authentication is the CLI's own "Login with Google"
+  session in `~/.gemini/oauth_creds.json`, which is only ever read. An API key
+  reaches no quota surface, so for API-key users (`mode = "auto"` picks this
+  when there is no Google login) the provider counts today's requests and
+  tokens per model from the CLI's own session logs instead — midnight to
+  midnight Pacific, Google's quota day — reading only each response's model,
+  token count, timestamp and id. `[gemini.daily_limits]` turns those counts
+  into percentages; without limits the bar shows `{gemini_requests} req`. The
+  count covers only this machine's CLI. The bar shows the
+  most-consumed bucket (`{gemini_pct}%`); the tooltip and every native panel
+  list each model. The CLI's ~1h access token is renewed when
+  `[gemini] oauth_client_id` / `oauth_client_secret` are set — the CLI's public
+  installed-app client, config-only like Antigravity's — with the result kept
+  in an account-scoped `gemini/oauth.json` (mode `0600`); without them, the
+  next `gemini` run renews it. Code Assist Standard/Enterprise accounts can
+  name their project with `[gemini] project` or `GOOGLE_CLOUD_PROJECT`. A user
+  who never finished the CLI's first-run setup is told to run `gemini`;
+  ai-usagebar never onboards anyone. Omarchy and GNOME get the Simple Icons
+  `googlegemini` mark (CC0).
+
 ## [1.30.0] — 2026-10-01
 
 ### Added

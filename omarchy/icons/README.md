@@ -27,5 +27,6 @@ back to its `short_name` (`cmc`).
 | `novita.svg` | Novita | lobe-icons `novita` | MIT |
 | `antigravity.svg` | Antigravity | lobe-icons `antigravity` | MIT |
 | `kiro.svg` | Kiro | lobe-icons `kiro` | MIT |
+| `gemini.svg` | Gemini CLI | Simple Icons `googlegemini` | CC0-1.0 |
 | `nous.svg` | Nous Research | lobe-icons `nousresearch` | MIT |
 | `opencode.svg` | OpenCode Go | lobe-icons `opencode` | MIT |

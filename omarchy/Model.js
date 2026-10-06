@@ -329,6 +329,8 @@ function brandFileFor(provider) {
       return "minimax.svg"
     case "kiro":
       return "kiro.svg"
+    case "gemini":
+      return "gemini.svg"
     case "nous":
       return "nous.svg"
     case "opencode-go":

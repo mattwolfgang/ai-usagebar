@@ -411,6 +411,7 @@ pub enum Vendor {
     Cursor,
     Minimax,
     Kiro,
+    Gemini,
     #[value(name = "nous")]
     NousResearch,
     #[value(name = "opencode-go")]
@@ -448,6 +449,7 @@ impl Vendor {
             Vendor::Cursor => crate::vendor::VendorId::Cursor,
             Vendor::Minimax => crate::vendor::VendorId::Minimax,
             Vendor::Kiro => crate::vendor::VendorId::Kiro,
+            Vendor::Gemini => crate::vendor::VendorId::Gemini,
             Vendor::NousResearch => crate::vendor::VendorId::NousResearch,
             Vendor::OpenCodeGo => crate::vendor::VendorId::OpenCodeGo,
             Vendor::CommandCode => crate::vendor::VendorId::CommandCode,
@@ -545,6 +547,7 @@ fn id_to_vendor(id: crate::vendor::VendorId) -> Vendor {
         crate::vendor::VendorId::Cursor => Vendor::Cursor,
         crate::vendor::VendorId::Minimax => Vendor::Minimax,
         crate::vendor::VendorId::Kiro => Vendor::Kiro,
+        crate::vendor::VendorId::Gemini => Vendor::Gemini,
         crate::vendor::VendorId::NousResearch => Vendor::NousResearch,
         crate::vendor::VendorId::OpenCodeGo => Vendor::OpenCodeGo,
         crate::vendor::VendorId::CommandCode => Vendor::CommandCode,

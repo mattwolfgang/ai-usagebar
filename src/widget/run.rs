@@ -18,6 +18,7 @@ use crate::cursor;
 use crate::deepinfra;
 use crate::deepseek;
 use crate::error::{AppError, Result};
+use crate::gemini;
 use crate::grok;
 use crate::grokbot;
 use crate::kilo;
@@ -167,6 +168,7 @@ async fn build_output(cli: &Cli) -> Result<WaybarOutput> {
         Vendor::Cursor => cursor_output(cli, &config).await,
         Vendor::Minimax => minimax_output(cli, &config).await,
         Vendor::Kiro => kiro_output(cli, &config).await,
+        Vendor::Gemini => gemini_output(cli, &config).await,
         Vendor::NousResearch => nous_output(cli).await,
         Vendor::OpenCodeGo => opencode_go_output(cli, &config).await,
         Vendor::CommandCode => commandcode_output(cli, &config).await,
@@ -462,6 +464,32 @@ async fn kiro_output(cli: &Cli, config: &Config) -> Result<WaybarOutput> {
     let vendor_outcome: VendorOutcome = outcome.into();
     let opts = RenderOpts::from_cli(cli);
     Ok(kiro::vendor::render(
+        &vendor_outcome,
+        &snap,
+        &theme,
+        &opts,
+        chrono::Utc::now(),
+    ))
+}
+
+/// Gemini CLI authenticates with the Google session the CLI saved after
+/// "Login with Google" — no API key, but a real on-disk path that can be
+/// overridden, plus the optional project and refresh client from `[gemini]`.
+async fn gemini_output(cli: &Cli, config: &Config) -> Result<WaybarOutput> {
+    let client = http_client()?;
+    let cache = vendor_cache(cli, "gemini")?;
+    let source = gemini::fetch::Source::from_config(&config.gemini)?;
+    let outcome = match gemini::fetch_snapshot(&client, &source, &cache, DEFAULT_TTL).await {
+        Ok(o) => o,
+        Err(e) if e.is_transient() => return Ok(WaybarOutput::loading(cli.icon.as_deref())),
+        Err(e) => return Err(e),
+    };
+
+    let theme = theme_from_cli(cli);
+    let snap = outcome.snapshot.clone();
+    let vendor_outcome: VendorOutcome = outcome.into();
+    let opts = RenderOpts::from_cli(cli);
+    Ok(gemini::vendor::render(
         &vendor_outcome,
         &snap,
         &theme,

@@ -342,6 +342,98 @@ impl KiroSnapshot {
     }
 }
 
+/// Gemini CLI usage, from one of two sources (see [`GeminiSource`]): the
+/// per-model request quota Google reports for a "Login with Google" session,
+/// or — for API-key users, whose key reaches no quota surface at all — a tally
+/// of today's requests counted from the Gemini CLI's own local session logs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GeminiSnapshot {
+    /// Code Assist tier label (`paidTier.name` or `currentTier.name`, e.g.
+    /// "Free", "Pro") for Google; "API key" for the local tally.
+    pub plan: String,
+    pub source: GeminiSource,
+    /// One entry per model, in the order [`GeminiSnapshot::sort`] puts them.
+    /// Never empty for Google (a response with no usable bucket is a schema
+    /// error); empty for the local tally on a day with no requests and no
+    /// configured limits.
+    pub models: Vec<GeminiModelQuota>,
+}
+
+/// Where a [`GeminiSnapshot`] came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum GeminiSource {
+    /// Cloud Code `retrieveUserQuota`, Google's own figures.
+    #[default]
+    Google,
+    /// Counted from this machine's Gemini CLI session logs. Usage from other
+    /// apps or machines sharing the API key is not visible.
+    Local,
+}
+
+/// One model's quota bucket (Google) or today's tally (local).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GeminiModelQuota {
+    /// The API's model id (`gemini-2.5-pro`).
+    pub model: String,
+    /// Percent of the bucket consumed: `100 - remainingFraction * 100` for
+    /// Google, `requests / daily limit` locally. `None` for a local model with
+    /// no configured limit — a count with nothing to measure it against.
+    pub utilization_pct: Option<i32>,
+    /// Requests left, when known.
+    pub remaining: Option<u64>,
+    /// Bucket size: implied by `remaining / remainingFraction` for Google (the
+    /// CLI's own derivation), or the configured daily limit locally.
+    pub limit: Option<u64>,
+    /// Requests counted today (local tally only).
+    pub requests: Option<u64>,
+    /// Tokens counted today (local tally only).
+    pub tokens: Option<u64>,
+    pub resets_at: Option<DateTime<Utc>>,
+}
+
+impl GeminiSnapshot {
+    /// The most-consumed bucket that has a percentage: what the bar and the
+    /// Overview show.
+    pub fn worst(&self) -> Option<&GeminiModelQuota> {
+        self.models
+            .iter()
+            .filter(|m| m.utilization_pct.is_some())
+            .max_by_key(|m| m.utilization_pct)
+    }
+
+    pub fn worst_pct(&self) -> Option<i32> {
+        self.worst().and_then(|m| m.utilization_pct)
+    }
+
+    /// Requests counted today across every model (local tally).
+    pub fn total_requests(&self) -> u64 {
+        self.models.iter().filter_map(|m| m.requests).sum()
+    }
+
+    /// Tokens counted today across every model (local tally).
+    pub fn total_tokens(&self) -> u64 {
+        self.models.iter().filter_map(|m| m.tokens).sum()
+    }
+
+    /// Pro models first, then Flash, then Flash-Lite, then anything else;
+    /// alphabetical within a family so newer versions sort predictably.
+    pub fn sort(&mut self) {
+        fn family(model: &str) -> u8 {
+            if model.contains("flash-lite") {
+                2
+            } else if model.contains("flash") {
+                1
+            } else if model.contains("pro") {
+                0
+            } else {
+                3
+            }
+        }
+        self.models
+            .sort_by(|a, b| (family(&a.model), &a.model).cmp(&(family(&b.model), &b.model)));
+    }
+}
+
 /// Kimi Code — weekly subscription quota plus a 5h rolling rate-limit window.
 ///
 /// Accounts on the newer `/coding/v1/usages` response shape have no weekly
@@ -432,6 +524,7 @@ pub enum VendorSnapshot {
     Cursor(CursorSnapshot),
     Minimax(MinimaxSnapshot),
     Kiro(KiroSnapshot),
+    Gemini(GeminiSnapshot),
     NousResearch(crate::nous::types::AccountSnapshot),
     OpenCodeGo(crate::opencode_go::types::Usage),
     CommandCode(crate::commandcode::types::Snapshot),

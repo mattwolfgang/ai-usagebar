@@ -31,5 +31,6 @@ badge exceptions is needed; icons can also be hidden in preferences.
 | `novita-symbolic.svg` | Novita | lobe-icons `novita` | MIT |
 | `antigravity-symbolic.svg` | Antigravity | lobe-icons `antigravity` | MIT |
 | `kiro-symbolic.svg` | Kiro | lobe-icons `kiro` | MIT |
+| `gemini-symbolic.svg` | Gemini CLI | Simple Icons `googlegemini` | CC0-1.0 |
 | `nous-symbolic.svg` | Nous Research | lobe-icons `nousresearch` | MIT |
 | `opencode-go-symbolic.svg` | OpenCode Go | lobe-icons `opencode` | MIT |

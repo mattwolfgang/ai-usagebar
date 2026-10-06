@@ -294,6 +294,7 @@ come from environment variables or `config.toml`.
 | Google Antigravity | Local Antigravity server, saved Google session, or `agy` status line | Opt in. The desktop products provide quota through their local server. The `agy` CLI can provide its live session quotas through the macOS status-line integration (see [Multiple Antigravity CLI accounts](#multiple-antigravity-cli-accounts-macos)); the existing saved-session Cloud Code API fallback remains available and is labelled `Google API` in the TUI. |
 | Cursor | Existing Cursor IDE or `cursor-agent` login | Opt in and sign in once. `cursor-agent` is the headless fallback. |
 | Kiro CLI | Existing kiro-cli login | Opt in and run `kiro-cli login` once. ai-usagebar refreshes the session when needed. |
+| Gemini CLI | Existing `gemini` login: "Login with Google" or an API key | Opt in. With a Google login, reports each model's request quota and reset from Google. With an API key — which reaches no quota surface — counts today's requests and tokens per model from the CLI's own session logs on this machine (midnight-to-midnight Pacific, Google's quota day); add `[gemini.daily_limits]` to turn counts into percentages. For Google logins, the CLI's ~1h access token is used until it expires; set `[gemini] oauth_client_id` / `oauth_client_secret` to let ai-usagebar renew it, or just run `gemini` again. |
 | Nous Research | OAuth device flow | Enable `[nous]`, click **Log in with Nous Research** in the Omarchy settings panel, or run `ai-usagebar auth nous login`. Credentials are kept in ai-usagebar's separate platform config directory (`~/.config/ai-usagebar/credentials.json` on Linux). |
 | OpenCode Go | API key (`OPENCODE_GO_API_KEY` env or `[opencode-go] api_key` in config) | Enable `[opencode-go]`, then enter the key in the Omarchy settings panel or set the environment variable. |
 | Command Code | Existing `commandcode` or pi login | Enable `[commandcode]` and sign in to either one once. No key to paste; `COMMANDCODE_API_KEY` overrides if you prefer one. |
@@ -390,7 +391,7 @@ take `headline`. Full rules in
 
 `enabled = true` is what makes a vendor fetch. Anthropic API, GitHub Copilot,
 DeepSeek, DeepInfra, Kimi, Kilo, Novita, Moonshot, Grok, SuperGrok, Grok Bot, Antigravity,
-Cursor, MiniMax, and Kiro CLI all default to **disabled** so that existing
+Cursor, MiniMax, Kiro CLI, and Gemini CLI all default to **disabled** so that existing
 installs are unaffected until you opt in. Use either method:
 
 - Use the gear or `s` in the Omarchy panel, or run
@@ -404,7 +405,7 @@ after signing in with GitHub CLI, selecting it as primary explicitly enables
 `[copilot]` at the same time.
 
 Vendors that authenticate through a local login rather than a key — Cursor,
-Kiro CLI, SuperGrok, Grok Bot, Antigravity, and Kimi when you have a Kimi For
+Kiro CLI, Gemini CLI, SuperGrok, Grok Bot, Antigravity, and Kimi when you have a Kimi For
 Coding subscription — have no key to save, so enable them with `enabled = true` in
 `config.toml`.
 
@@ -499,6 +500,14 @@ For each API-key vendor, ai-usagebar checks in this order:
   access token.
 - kiro-cli's `data.sqlite3` is read-only. Refreshed credentials go to an
   account-scoped `kiro/oauth.json` file, mode `600` on Unix.
+- The Gemini CLI's `~/.gemini/oauth_creds.json` and its session logs under
+  `~/.gemini/tmp` are read-only; from the logs only each response's model,
+  token count, timestamp and id are read, never message text.
+- The Gemini CLI's `~/.gemini/oauth_creds.json` is read-only. A refreshed
+  access token goes to an account-scoped `gemini/oauth.json` file, mode `600`
+  on Unix. Renewing needs the Gemini CLI's own public installed-app OAuth
+  client in `[gemini] oauth_client_id` / `oauth_client_secret`; nothing
+  secret-shaped ships in this repository.
 
 #### macOS: Claude credentials in the Keychain
 
@@ -614,6 +623,7 @@ ai-usagebar --vendor deepseek
 ai-usagebar --vendor deepinfra
 ai-usagebar --vendor kimi
 ai-usagebar --vendor kiro
+ai-usagebar --vendor gemini
 
 # Force Waybar JSON (e.g. piping into jq).
 ai-usagebar --json
@@ -880,7 +890,9 @@ Use one bar item and scroll through your vendors. The TUI on-click still shows t
 `{vendor_short}` identifies the active provider with a three-letter code. For a
 format shared by every cycled provider, use `{session_pct}`,
 `{session_reset}`, `{weekly_pct}`, and `{weekly_reset}`. Cursor maps its two
-usage pools to the session and weekly slots; Kiro maps its single pool to both.
+usage pools to the session and weekly slots; Kiro maps its single pool to both,
+and Gemini maps its most-consumed model bucket to both (or, for an API key with
+no configured limits, shows today's request count).
 The [placeholder reference](docs/format-placeholders.md) lists every generic
 and provider-specific field.
 

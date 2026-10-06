@@ -56,6 +56,12 @@
 //!   `data.sqlite3`, then asserts the credit counters are non-negative and the
 //!   plan label is non-empty. `kiro_live` skips when there is no kiro-cli
 //!   install (no db and no `KIRO_DB_PATH`).
+//! - **Gemini CLI**: with a "Login with Google" session in
+//!   `~/.gemini/oauth_creds.json`, asks Google for the per-model quota and
+//!   asserts at least one bucket with a bounded percentage; for API-key users,
+//!   tallies today's requests from the CLI's local session logs instead.
+//!   `gemini_live` skips when there is neither. Set `GEMINI_OAUTH_CLIENT_ID` /
+//!   `GEMINI_OAUTH_CLIENT_SECRET` to exercise the refresh as well.
 //! - **SuperGrok**: asks the official Grok Build CLI's `x.ai/billing` ACP
 //!   extension, then asserts usage percent and plan. Set
 //!   `SUPERGROK_GROK_BINARY` to the trusted official executable.
@@ -76,6 +82,7 @@ use ai_usagebar::cache::Cache;
 use ai_usagebar::cursor;
 use ai_usagebar::deepinfra;
 use ai_usagebar::error::AppError;
+use ai_usagebar::gemini;
 use ai_usagebar::kimi;
 use ai_usagebar::kiro;
 use ai_usagebar::minimax;
@@ -565,6 +572,63 @@ async fn kiro_live() {
         out.snapshot.limit,
         out.snapshot.pct(),
         out.snapshot.reset_at,
+    );
+}
+
+#[tokio::test]
+#[ignore = "live API; run with --ignored"]
+async fn gemini_live() {
+    // No API key of its own: `mode = auto` reads Google's quota when the
+    // Gemini CLI has a "Login with Google" session, and otherwise tallies the
+    // CLI's local session logs (API-key users). Skips when there is neither.
+    let env = |name: &str| std::env::var(name).ok().filter(|v| !v.trim().is_empty());
+    let config = ai_usagebar::config::GeminiConfig {
+        enabled: true,
+        creds_path: env("GEMINI_CREDS_PATH").map(std::path::PathBuf::from),
+        oauth_client_id: env("GEMINI_OAUTH_CLIENT_ID"),
+        oauth_client_secret: env("GEMINI_OAUTH_CLIENT_SECRET"),
+        ..Default::default()
+    };
+    let source = gemini::fetch::Source::from_config(&config).expect("resolve home dir");
+    if !source.uses_google() && !gemini::local::has_session_logs(&source.logs_dir) {
+        eprintln!(
+            "gemini_live: no Gemini CLI login or session logs — skipping (run `gemini` once, \
+             or set GEMINI_CREDS_PATH)"
+        );
+        return;
+    }
+
+    let cache = xdg_cache_for("gemini");
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .unwrap();
+    let out = gemini::fetch_snapshot(&client, &source, &cache, Duration::from_secs(0))
+        .await
+        .expect("gemini fetch should succeed");
+
+    if source.uses_google() {
+        assert!(!out.snapshot.models.is_empty(), "gemini: no model buckets");
+    }
+    for m in &out.snapshot.models {
+        assert!(!m.model.is_empty(), "gemini: empty model id");
+        if let Some(pct) = m.utilization_pct {
+            assert_pct(&format!("gemini {}", m.model), pct);
+        }
+    }
+    println!(
+        "✅ gemini ({:?}) — plan={:?}, {}",
+        out.snapshot.source,
+        out.snapshot.plan,
+        out.snapshot
+            .models
+            .iter()
+            .map(|m| format!(
+                "{} pct={:?} requests={:?} tokens={:?} (reset {:?})",
+                m.model, m.utilization_pct, m.requests, m.tokens, m.resets_at
+            ))
+            .collect::<Vec<_>>()
+            .join(", "),
     );
 }
 

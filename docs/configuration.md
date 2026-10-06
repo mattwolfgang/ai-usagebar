@@ -23,7 +23,7 @@ ai-usagebar-tui --config ./config.test.toml
 # primary = "anthropic"   # anthropic | anthropic_api | openai | copilot | ollama
 #                         # | zai | openrouter | deepseek | deepinfra | kimi | kilo | novita
 #                         # | moonshot | grok | supergrok | grokbot | antigravity | cursor
-#                         # | minimax | kiro | nous | opencode-go | commandcode
+#                         # | minimax | kiro | gemini | nous | opencode-go | commandcode
 #                         # | orcarouter | modelstudio
 
 [context]
@@ -220,6 +220,23 @@ enabled = true             # disabled by default; enable once you've run `kiro-c
 # No API key: reads the AWS SSO OIDC session kiro-cli already wrote to its own
 # data.sqlite3 after you logged in there.
 # db_path = "/home/you/.local/share/kiro-cli/data.sqlite3"
+
+[gemini]
+enabled = true             # disabled by default; enable once you have used `gemini`
+# mode = "auto"            # auto | google | local. auto: google when the CLI's
+#                          # Google login file exists, else local.
+# google: Google's per-model quota for a "Login with Google" session.
+# local:  API-key users — today's requests/tokens per model counted from the
+#         CLI's session logs (only this machine's CLI usage; text never read).
+# logs_dir = "~/.gemini/tmp"
+# [gemini.daily_limits]    # local only: requests/day per model → a percentage
+# "gemini-2.5-flash" = 250
+# creds_path = "~/.gemini/oauth_creds.json"
+# project = "my-gcp-project"   # Code Assist Standard/Enterprise only; else GOOGLE_CLOUD_PROJECT
+# The Gemini CLI's own public OAuth client, to renew its ~1h access token.
+# Without it, the next `gemini` run renews the token instead.
+# oauth_client_id = "<client id>"
+# oauth_client_secret = "<client secret>"
 
 [modelstudio]
 enabled = false            # disabled by default; enable after `bl auth login --console`

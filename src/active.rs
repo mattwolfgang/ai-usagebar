@@ -118,6 +118,7 @@ fn parse_slug(s: &str) -> Option<VendorId> {
         "cursor" => Some(VendorId::Cursor),
         "minimax" => Some(VendorId::Minimax),
         "kiro" => Some(VendorId::Kiro),
+        "gemini" => Some(VendorId::Gemini),
         "nous" => Some(VendorId::NousResearch),
         "opencode-go" => Some(VendorId::OpenCodeGo),
         "commandcode" => Some(VendorId::CommandCode),
