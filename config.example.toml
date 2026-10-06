@@ -304,6 +304,27 @@ api_key_env = "OLLAMA_API_KEY"  # checked first; if set + non-empty, used
 # api_key = "..."               # fallback; chmod 600 the file if you use it
 # plan = "pro"                  # label shown in tooltips; the API reports none
 
+[ollama-local]
+# Disabled by default. A self-hosted Ollama server has no quota, so this is a
+# tally: tokens used today (local midnight) by OpenCode and Open WebUI, counted
+# only for the models `server` lists in /api/tags. OpenCode's figures come
+# from its own database (read-only); Open WebUI's from its admin-only
+# /api/v1/analytics/tokens, which needs an admin API key (Settings > Account).
+# If any configured source fails, the bar keeps the last complete total (⏸).
+enabled = false
+# server = "http://192.168.1.50:11434"   # required once enabled
+# opencode = true                         # count OpenCode's replies
+# opencode_db = "~/.local/share/opencode/opencode.db"  # default path
+# open_webui_url = "http://192.168.1.50:3000"  # unset skips Open WebUI
+api_key_env = "OPEN_WEBUI_API_KEY"        # Open WebUI admin key; checked first
+# api_key = "..."                         # fallback; chmod 600 the file if you use it
+# usage_proxy = false                     # true when `server` is behind a proxy
+#                                         # serving GET /_usage?start=&end=; it
+#                                         # sees every client, so it replaces the
+#                                         # OpenCode and Open WebUI sources
+# allow_http = false                      # true to permit http:// URLs (the key
+#                                         # then crosses the network unencrypted)
+
 [kimi]
 # Disabled by default. Two ways to authenticate:
 #   1. An existing Kimi Code CLI login: log in with `kimi` and just set

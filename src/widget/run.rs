@@ -172,6 +172,7 @@ async fn build_output(cli: &Cli) -> Result<WaybarOutput> {
         Vendor::OpenCodeGo => opencode_go_output(cli, &config).await,
         Vendor::CommandCode => commandcode_output(cli, &config).await,
         Vendor::Ollama => ollama_output(cli, &config).await,
+        Vendor::OllamaLocal => ollama_local_output(cli, &config).await,
         Vendor::OrcaRouter => orcarouter_output(cli, &config).await,
         Vendor::Lyceum => lyceum_output(cli, &config).await,
         Vendor::ModelStudio => modelstudio_output(cli, &config).await,
@@ -288,6 +289,29 @@ async fn commandcode_output(cli: &Cli, config: &Config) -> Result<WaybarOutput> 
     let snapshot = outcome.snapshot.clone();
     let vendor_outcome: VendorOutcome = outcome.into();
     Ok(crate::commandcode::vendor::render(
+        &vendor_outcome,
+        &snapshot,
+        &theme_from_cli(cli),
+        &RenderOpts::from_cli(cli),
+        Utc::now(),
+    ))
+}
+
+/// A self-hosted Ollama server: today's tokens from OpenCode's local database
+/// and Open WebUI's analytics, for the models the server lists.
+async fn ollama_local_output(cli: &Cli, config: &Config) -> Result<WaybarOutput> {
+    let sources = crate::ollama_local::fetch::Sources::from_config(&config.ollama_local)?;
+    let client = http_client()?;
+    let cache = vendor_cache(cli, VendorId::OllamaLocal.slug())?;
+    let outcome =
+        match crate::ollama_local::fetch_snapshot(&client, &sources, &cache, DEFAULT_TTL).await {
+            Ok(o) => o,
+            Err(e) if e.is_transient() => return Ok(WaybarOutput::loading(cli.icon.as_deref())),
+            Err(e) => return Err(e),
+        };
+    let snapshot = outcome.snapshot.clone();
+    let vendor_outcome: VendorOutcome = outcome.into();
+    Ok(crate::ollama_local::vendor::render(
         &vendor_outcome,
         &snapshot,
         &theme_from_cli(cli),

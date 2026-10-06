@@ -980,6 +980,13 @@ async fn build_outcome(client: &Client, config: &Config, tab: &TabId) -> Result<
             .await?;
             Ok(outcome.into())
         }
+        VendorId::OllamaLocal => {
+            let sources = crate::ollama_local::fetch::Sources::from_config(&config.ollama_local)?;
+            let cache = crate::cache::Cache::for_vendor(VendorId::OllamaLocal.slug())?;
+            let outcome =
+                crate::ollama_local::fetch_snapshot(client, &sources, &cache, DEFAULT_TTL).await?;
+            Ok(outcome.into())
+        }
         VendorId::OrcaRouter => {
             let (api_key, cache) = api_key_and_cache(config, vendor, tab.account.as_deref())?;
             let endpoints = crate::orcarouter::fetch::Endpoints::default();

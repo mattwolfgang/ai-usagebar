@@ -99,6 +99,9 @@ pub fn has_local_credentials(vendor: VendorId, config: &Config) -> bool {
             crate::commandcode::creds::resolve(config.commandcode.auth_paths.as_deref()).is_ok()
         }
         VendorId::Ollama => key_present(config, vendor),
+        // A self-hosted server: naming it is the setup. Whether it answers,
+        // and whether the Open WebUI key is an admin one, only the wire says.
+        VendorId::OllamaLocal => !config.ollama_local.server.trim().is_empty(),
         VendorId::OrcaRouter => key_present(config, vendor),
         VendorId::Lyceum => key_present(config, vendor),
         // File-exists only, like Grok Bot: parsing the JSON here would be

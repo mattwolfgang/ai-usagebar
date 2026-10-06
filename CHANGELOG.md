@@ -9,6 +9,27 @@ Each release is also published at
 
 ## [Unreleased]
 
+### Added
+
+- **Ollama (local): today's tokens on a self-hosted Ollama server.** A new
+  opt-in `[ollama-local]` provider (`--vendor ollama-local`, tag `olo`) puts
+  the day's token total on the bar for a server with no quota to read. It adds
+  up OpenCode's replies from its own `opencode.db` (read-only, prompt-cache
+  hits included, so it matches OpenCode's own `tokens.total`) and Open WebUI's
+  admin `/api/v1/analytics/tokens`, counting only the models the server lists
+  in `/api/tags`. The tooltip, TUI and `usage --json` split the total by app
+  and by model. The day is the local calendar day. If any configured source
+  fails, the last complete total stays up, marked stale, rather than a
+  partial sum. Placeholders are `{olo_tokens}`, `{olo_tokens_exact}`,
+  `{olo_requests}`, `{olo_opencode_tokens}`, `{olo_openwebui_tokens}`,
+  `{olo_day}` and `{olo_server}`. The Omarchy and KDE bars show a `Tokens` text
+  row's value the way they already show a balance. With `usage_proxy = true`
+  the total comes instead from a usage-recording proxy in front of the server
+  (`GET /_usage?start=&end=`, epoch seconds), which counts every client and
+  needs no Open WebUI key. The Omarchy bar shows Ollama's logomark (Simple
+  Icons, CC0) for both Ollama Cloud and Ollama (local), instead of the `oll`
+  and `olo` tags.
+
 ## [1.32.0] — 2026-10-04
 
 ### Added

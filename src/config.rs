@@ -69,6 +69,8 @@ pub struct Config {
     pub opencode_go: OpenCodeGoConfig,
     pub commandcode: CommandCodeConfig,
     pub ollama: OllamaConfig,
+    #[serde(rename = "ollama-local")]
+    pub ollama_local: OllamaLocalConfig,
     pub orcarouter: OrcaRouterConfig,
     pub modelstudio: ModelStudioConfig,
     pub lyceum: LyceumConfig,
@@ -1075,6 +1077,108 @@ impl Default for OllamaConfig {
             api_key: None,
             plan: "pro".to_string(),
         }
+    }
+}
+
+/// A self-hosted Ollama server (`[ollama-local]`): today's tokens from
+/// OpenCode's local database and Open WebUI's admin analytics, counted only
+/// for the models `server` lists. Opt-in; `server` is required once enabled.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default)]
+pub struct OllamaLocalConfig {
+    pub enabled: bool,
+    /// The Ollama server's base URL (`http://192.168.1.50:11434`). Its
+    /// `/api/tags` list decides which models count.
+    pub server: String,
+    /// Count OpenCode's replies from its local session database.
+    pub opencode: bool,
+    /// Override OpenCode's database path (defaults to
+    /// `$XDG_DATA_HOME/opencode/opencode.db`).
+    pub opencode_db: Option<PathBuf>,
+    /// Open WebUI's base URL (`http://192.168.1.50:3000`). Unset skips it.
+    pub open_webui_url: Option<String>,
+    /// The server sits behind a usage-recording proxy that serves
+    /// `GET /_usage?start=&end=`. It sees every client, so it replaces the
+    /// OpenCode and Open WebUI sources rather than adding to them.
+    pub usage_proxy: bool,
+    /// Env var holding an Open WebUI **admin** API key; its analytics routes
+    /// are admin-only.
+    pub api_key_env: String,
+    pub api_key: Option<String>,
+    /// Permit `http://` for `server` and `open_webui_url`. A self-hosted
+    /// server usually has no TLS, but the Open WebUI key then crosses the
+    /// network in the clear, so this is a choice the config states.
+    pub allow_http: bool,
+}
+
+impl Default for OllamaLocalConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            server: String::new(),
+            opencode: true,
+            opencode_db: None,
+            open_webui_url: None,
+            usage_proxy: false,
+            api_key_env: "OPEN_WEBUI_API_KEY".to_string(),
+            api_key: None,
+            allow_http: false,
+        }
+    }
+}
+
+impl OllamaLocalConfig {
+    fn validate(&self) -> Result<()> {
+        let bad = |msg: String| AppError::Other(format!("[ollama-local] {msg}"));
+        if self.enabled && self.server.trim().is_empty() {
+            return Err(bad("server must be set to the Ollama base URL".into()));
+        }
+        // URLs are checked even while disabled, like `[[custom]]`: the day it
+        // is switched on is the wrong day to find out one is malformed.
+        let server = Some(self.server.as_str()).filter(|s| !s.trim().is_empty());
+        for (field, value) in server.map(|u| ("server", u)).into_iter().chain(
+            self.open_webui_url
+                .as_deref()
+                .map(|u| ("open_webui_url", u)),
+        ) {
+            let url = reqwest::Url::parse(value)
+                .map_err(|_| bad(format!("{field} {value:?} is not a valid URL")))?;
+            match url.scheme() {
+                "https" => {}
+                "http" if self.allow_http => {}
+                "http" => {
+                    return Err(bad(format!(
+                        "{field} must use https:// (set allow_http = true to permit http://)"
+                    )));
+                }
+                other => {
+                    return Err(bad(format!(
+                        "{field} scheme {other:?} is not http or https"
+                    )));
+                }
+            }
+            if !url.username().is_empty() || url.password().is_some() {
+                return Err(bad(format!(
+                    "{field} must not carry credentials (user:pass@)"
+                )));
+            }
+            if url.host_str().is_none() {
+                return Err(bad(format!("{field} has no host")));
+            }
+        }
+        if self.usage_proxy && self.open_webui_url.is_some() {
+            return Err(bad(
+                "usage_proxy already counts Open WebUI's requests; remove open_webui_url \
+                 or it would be counted twice"
+                    .into(),
+            ));
+        }
+        if self.enabled && !self.usage_proxy && !self.opencode && self.open_webui_url.is_none() {
+            return Err(bad(
+                "nothing to count: enable opencode or set open_webui_url".into(),
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -2148,6 +2252,7 @@ impl Config {
         expand_tilde_opt(&mut self.cursor.db_path);
         expand_tilde_opt(&mut self.cursor.agent_auth_path);
         expand_tilde_opt(&mut self.kiro.db_path);
+        expand_tilde_opt(&mut self.ollama_local.opencode_db);
         expand_tilde_opt(&mut self.kimi.credentials_path);
         expand_tilde_opt(&mut self.grokbot.secrets_path);
         expand_tilde_opt(&mut self.modelstudio.config_dir);
@@ -2187,6 +2292,7 @@ impl Config {
             self.anthropic_api.api_key.as_deref(),
             self.opencode_go.api_key.as_deref(),
             self.ollama.api_key.as_deref(),
+            self.ollama_local.api_key.as_deref(),
             self.orcarouter.api_key.as_deref(),
             self.lyceum.api_key.as_deref(),
             self.antigravity.oauth_client_secret.as_deref(),
@@ -2288,6 +2394,7 @@ impl Config {
             VendorId::OpenCodeGo => self.opencode_go.enabled,
             VendorId::CommandCode => self.commandcode.enabled,
             VendorId::Ollama => self.ollama.enabled,
+            VendorId::OllamaLocal => self.ollama_local.enabled,
             VendorId::OrcaRouter => self.orcarouter.enabled,
             VendorId::ModelStudio => self.modelstudio.enabled,
             VendorId::Lyceum => self.lyceum.enabled,
@@ -2315,6 +2422,7 @@ impl Config {
             VendorId::Minimax => &self.minimax.api_key_env,
             VendorId::OpenCodeGo => &self.opencode_go.api_key_env,
             VendorId::Ollama => &self.ollama.api_key_env,
+            VendorId::OllamaLocal => &self.ollama_local.api_key_env,
             VendorId::OrcaRouter => &self.orcarouter.api_key_env,
             VendorId::Lyceum => &self.lyceum.api_key_env,
             // Fixed names: OAuth-first providers whose environment override is
@@ -2351,6 +2459,7 @@ impl Config {
             VendorId::Minimax => self.minimax.api_key.as_deref(),
             VendorId::OpenCodeGo => self.opencode_go.api_key.as_deref(),
             VendorId::Ollama => self.ollama.api_key.as_deref(),
+            VendorId::OllamaLocal => self.ollama_local.api_key.as_deref(),
             VendorId::OrcaRouter => self.orcarouter.api_key.as_deref(),
             VendorId::Lyceum => self.lyceum.api_key.as_deref(),
             VendorId::Anthropic
@@ -2580,6 +2689,7 @@ impl Config {
                 self.minimax.region
             )));
         }
+        self.ollama_local.validate()?;
         if self.supergrok.grok_binary.as_os_str().is_empty() {
             return Err(AppError::Other(
                 "[supergrok] grok_binary must not be empty".into(),
@@ -4739,6 +4849,52 @@ api_key = "synthetic-account"
         assert_eq!(c.openai.enabled, default.enabled);
         assert_eq!(c.openai.codex_auth_path, default.codex_auth_path);
         assert_eq!(c.enabled_vendors(), Config::default().enabled_vendors());
+    }
+
+    #[test]
+    fn ollama_local_parses_and_validates() {
+        let load = |body: &str| {
+            let f = write_toml(&format!("[ollama-local]\n{body}"));
+            Config::load_from(f.path())
+        };
+        let c = load(
+            "enabled = true\nserver = \"http://192.168.1.50:11434\"\n\
+             open_webui_url = \"http://192.168.1.50:3000\"\nallow_http = true",
+        )
+        .unwrap();
+        assert!(c.is_enabled(VendorId::OllamaLocal));
+        assert!(c.ollama_local.opencode, "OpenCode is counted by default");
+        assert_eq!(
+            c.api_key_env_for(VendorId::OllamaLocal),
+            "OPEN_WEBUI_API_KEY"
+        );
+
+        let err = load("enabled = true").unwrap_err().to_string();
+        assert!(err.contains("server must be set"), "{err}");
+        let err = load("server = \"http://ollama-box:11434\"")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("allow_http"),
+            "checked while disabled too: {err}"
+        );
+        let err = load("enabled = true\nserver = \"https://u:p@ollama-box\"")
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("credentials"), "{err}");
+        let err = load("enabled = true\nserver = \"https://ollama-box\"\nopencode = false")
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("nothing to count"), "{err}");
+        let c = load("enabled = true\nserver = \"https://ollama-box\"\nusage_proxy = true").unwrap();
+        assert!(c.ollama_local.usage_proxy);
+        let err = load(
+            "enabled = true\nserver = \"https://ollama-box\"\nusage_proxy = true\n\
+             open_webui_url = \"https://ollama-box:3000\"",
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("counted twice"), "{err}");
     }
 
     #[test]

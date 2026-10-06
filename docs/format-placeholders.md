@@ -21,6 +21,7 @@ metrics expand to an empty string unless noted otherwise.
 | Kiro CLI | `kir` | Nous Research | `nrs` |
 | OpenCode Go | `ocg` | Command Code | `cmc` |
 | Ollama Cloud | `oll` | SuperGrok | `sgk` |
+| Ollama (local) | `olo` | | |
 
 The same codes ride the `ai-usagebar usage --json` report as each entry's
 `short_name`, so a native frontend can draw a Waybar-style provider tag without
@@ -439,6 +440,18 @@ render `—` when the window exists but has no timestamp, or stay empty when
 the window is absent. `{oll_cost}` is the dollar figure the settings page
 reports for the last four weeks of activity. `{session_pct}` and
 `{weekly_pct}` alias the session and weekly windows.
+
+## Ollama (local)
+
+`{olo_tokens}` (compact: `950`, `58.5k`, `1.2M`), `{olo_tokens_exact}`,
+`{olo_requests}`, `{olo_opencode_tokens}`, `{olo_openwebui_tokens}`,
+`{olo_day}`, `{olo_server}`
+
+Tokens used today on a self-hosted Ollama server, from OpenCode and Open
+WebUI, for the models the server lists. It is a tally, not a quota, so there
+are no percentage, reset or pace placeholders and the class is always `low`.
+`{olo_day}` is `today`, or the date (`Oct 5`) when a stale total from before
+midnight is still on screen. `{plan}` aliases `{olo_server}`.
 
 ## Lyceum
 

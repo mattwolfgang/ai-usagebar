@@ -47,6 +47,7 @@ pub(crate) const VENDOR_SECRET_ENV_VARS: &[&str] = &[
     "GH_TOKEN",
     "GITHUB_TOKEN",
     "OLLAMA_API_KEY",
+    "OPEN_WEBUI_API_KEY",
 ];
 
 /// Env var names a `[[custom]]` provider reads its token from. They are not
@@ -183,6 +184,8 @@ pub enum VendorId {
     #[serde(rename = "commandcode")]
     CommandCode,
     Ollama,
+    #[serde(rename = "ollama-local")]
+    OllamaLocal,
     OrcaRouter,
     ModelStudio,
     Lyceum,
@@ -239,6 +242,7 @@ impl VendorId {
             VendorId::OpenCodeGo => "opencode-go",
             VendorId::CommandCode => "commandcode",
             VendorId::Ollama => "ollama",
+            VendorId::OllamaLocal => "ollama-local",
             VendorId::OrcaRouter => "orcarouter",
             VendorId::ModelStudio => "modelstudio",
             VendorId::Lyceum => "lyceum",
@@ -273,6 +277,7 @@ impl VendorId {
             VendorId::OpenCodeGo => "OpenCode Go",
             VendorId::CommandCode => "Command Code",
             VendorId::Ollama => "Ollama Cloud",
+            VendorId::OllamaLocal => "Ollama (local)",
             VendorId::OrcaRouter => "OrcaRouter",
             VendorId::ModelStudio => "Model Studio",
             VendorId::Lyceum => "Lyceum",
@@ -308,6 +313,7 @@ impl VendorId {
             // No distinct Nerd Font mark for Ollama Cloud; the `oll` short
             // name is unique by construction and cannot render as tofu.
             VendorId::Ollama => VendorId::Ollama.short_name(),
+            VendorId::OllamaLocal => VendorId::OllamaLocal.short_name(),
             // Same story for OrcaRouter: the `orc` short name is unique.
             VendorId::OrcaRouter => VendorId::OrcaRouter.short_name(),
             // Same story for Model Studio: the `mst` short name is unique.
@@ -345,6 +351,7 @@ impl VendorId {
             VendorId::OpenCodeGo => "ocg",
             VendorId::CommandCode => "cmc",
             VendorId::Ollama => "oll",
+            VendorId::OllamaLocal => "olo",
             VendorId::OrcaRouter => "orc",
             VendorId::ModelStudio => "mst",
             VendorId::Lyceum => "lyc",
@@ -383,6 +390,7 @@ impl VendorId {
             VendorId::OpenCodeGo => "opencode-go",
             VendorId::CommandCode => "commandcode",
             VendorId::Ollama => "ollama",
+            VendorId::OllamaLocal => "ollama-local",
             VendorId::OrcaRouter => "orcarouter",
             VendorId::ModelStudio => "modelstudio",
             VendorId::Lyceum => "lyceum",
@@ -414,6 +422,7 @@ impl VendorId {
             | VendorId::Minimax
             | VendorId::OpenCodeGo
             | VendorId::Ollama
+            | VendorId::OllamaLocal
             | VendorId::OrcaRouter
             | VendorId::Lyceum => AuthKind::ApiKey,
             // No credential of their own: another local product's session is
@@ -451,6 +460,7 @@ impl VendorId {
             VendorId::Minimax => "MINIMAX_API_KEY",
             VendorId::OpenCodeGo => "OPENCODE_GO_API_KEY",
             VendorId::Ollama => "OLLAMA_API_KEY",
+            VendorId::OllamaLocal => "OPEN_WEBUI_API_KEY",
             VendorId::OrcaRouter => "ORCAROUTER_API_KEY",
             VendorId::Lyceum => "LYCEUM_API_KEY",
             // OAuth-first, with an environment override for CI and headless
@@ -498,6 +508,11 @@ impl VendorId {
             VendorId::Grok | VendorId::Supergrok => "Sign in with `grok`, then Refresh.",
             VendorId::Grokbot => "Install and sign in to the Grok Bot desktop app, then Refresh.",
             // Local login through the official CLI's own console session.
+            // A self-hosted server: the config names it, and Open WebUI's
+            // figures need an admin key. OpenCode's are read locally.
+            VendorId::OllamaLocal => {
+                "Set the server URL in [ollama-local] (and an Open WebUI key), then Refresh."
+            }
             VendorId::ModelStudio => {
                 "Install the official `bl` CLI and run `bl auth login --console`, then Refresh."
             }
@@ -550,6 +565,7 @@ impl VendorId {
             | VendorId::Minimax
             | VendorId::OpenCodeGo
             | VendorId::Ollama
+            | VendorId::OllamaLocal
             | VendorId::OrcaRouter
             | VendorId::Lyceum => "",
         }
@@ -580,6 +596,7 @@ impl VendorId {
             VendorId::OpenCodeGo,
             VendorId::CommandCode,
             VendorId::Ollama,
+            VendorId::OllamaLocal,
             VendorId::OrcaRouter,
             VendorId::ModelStudio,
             VendorId::Lyceum,

@@ -527,6 +527,8 @@ assert.equal(model.brandIconFile({id: 'grokbot'}), 'grokbot.svg');
 assert.equal(model.brandIconFile({id: 'copilot'}), 'copilot.svg');
 assert.equal(model.brandIconFile({id: 'kimi'}), 'kimi.svg');
 assert.equal(model.brandIconFile({id: 'opencode-go'}), 'opencode.svg');
+assert.equal(model.brandIconFile({id: 'ollama'}), 'ollama.svg');
+assert.equal(model.brandIconFile({id: 'ollama-local'}), 'ollama.svg');
 assert.equal(model.brandIconFile({id: 'lyceum'}), '');
 assert.equal(model.brandIconFile({id: 'commandcode'}), '');
 assert.equal(model.brandIconFile({id: 'anthropic_api'}), 'anthropic.svg');
@@ -779,6 +781,13 @@ const balance = model.parseReport(JSON.stringify({entries: [{
   sections: [{type: 'text', label: 'Balance', value: '$8.42'}]
 }]})).entries[0];
 assert.equal(model.headline(balance).text, '$8.42');
+// A self-hosted server's tally is a text row too: the count goes on the bar.
+const tally = model.parseReport(JSON.stringify({entries: [{
+  id: 'ollama-local', error: null,
+  sections: [{type: 'text', label: 'Tokens today', value: '58.5k'},
+             {type: 'text', label: 'Replies', value: '13'}]
+}]})).entries[0];
+assert.equal(model.headline(tally).text, '58.5k');
 // The metric names its own headline; the label plays no part. A metric that
 // says nothing is a percentage, which is what OpenRouter's "Credit balance" row
 // is — the old label check put its dollar figure on the bar and hid the percent.

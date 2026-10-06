@@ -155,6 +155,17 @@ enabled = true
 api_key_env = "OLLAMA_API_KEY"
 # api_key = "..."          # used if OLLAMA_API_KEY is unset; chmod 600 the file!
 
+[ollama-local]
+# Disabled by default. Tokens used today on a self-hosted Ollama server by
+# OpenCode (its local opencode.db) and Open WebUI (admin analytics API).
+enabled = true
+server = "http://192.168.1.50:11434"       # its /api/tags decides which models count
+open_webui_url = "http://192.168.1.50:3000" # omit to count OpenCode only
+api_key_env = "OPEN_WEBUI_API_KEY"          # an Open WebUI *admin* API key
+allow_http = true                           # both URLs above are plain http
+# usage_proxy = true    # server is behind a proxy serving GET /_usage?start=&end=;
+#                       # it counts every client, so drop open_webui_url
+
 [moonshot]
 enabled = true             # disabled by default; enable once you add an API key
 api_key_env = "MOONSHOT_API_KEY"

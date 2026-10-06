@@ -418,6 +418,8 @@ pub enum Vendor {
     #[value(name = "commandcode")]
     CommandCode,
     Ollama,
+    #[value(name = "ollama-local")]
+    OllamaLocal,
     // The slug frontends pass (`vendorArgs` in the macOS menu bar); clap's
     // derived kebab-case spelling stays accepted for existing scripts.
     #[value(name = "orcarouter", alias = "orca-router")]
@@ -453,6 +455,7 @@ impl Vendor {
             Vendor::OpenCodeGo => crate::vendor::VendorId::OpenCodeGo,
             Vendor::CommandCode => crate::vendor::VendorId::CommandCode,
             Vendor::Ollama => crate::vendor::VendorId::Ollama,
+            Vendor::OllamaLocal => crate::vendor::VendorId::OllamaLocal,
             Vendor::OrcaRouter => crate::vendor::VendorId::OrcaRouter,
             Vendor::ModelStudio => crate::vendor::VendorId::ModelStudio,
             Vendor::Lyceum => crate::vendor::VendorId::Lyceum,
@@ -551,6 +554,7 @@ fn id_to_vendor(id: crate::vendor::VendorId) -> Vendor {
         crate::vendor::VendorId::OpenCodeGo => Vendor::OpenCodeGo,
         crate::vendor::VendorId::CommandCode => Vendor::CommandCode,
         crate::vendor::VendorId::Ollama => Vendor::Ollama,
+        crate::vendor::VendorId::OllamaLocal => Vendor::OllamaLocal,
         crate::vendor::VendorId::OrcaRouter => Vendor::OrcaRouter,
         crate::vendor::VendorId::ModelStudio => Vendor::ModelStudio,
         crate::vendor::VendorId::Lyceum => Vendor::Lyceum,

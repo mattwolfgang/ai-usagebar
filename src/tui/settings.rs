@@ -162,6 +162,14 @@ pub const KEY_VENDORS: &[KeyVendor] = &[
         note: "ollama.com/settings/keys",
     },
     KeyVendor {
+        id: VendorId::OllamaLocal,
+        label: "Ollama (local)",
+        section: VendorId::OllamaLocal.config_section(),
+        config_key: "api_key",
+        secret_label: "Open WebUI key",
+        note: "admin key; also set server",
+    },
+    KeyVendor {
         id: VendorId::OrcaRouter,
         label: "OrcaRouter",
         section: VendorId::OrcaRouter.config_section(),

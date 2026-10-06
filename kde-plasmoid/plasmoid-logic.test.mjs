@@ -293,6 +293,13 @@ const emptyValue = parseReport(JSON.stringify({entries: [{
                 headline: 'value'}],
 }]})).entries[0];
 assert.equal(headline(emptyValue).text, '60%');
+// A self-hosted server's tally is a text row: the count goes on the panel.
+const tally = parseReport(JSON.stringify({entries: [{
+    id: 'ollama-local', error: null,
+    sections: [{type: 'text', label: 'Tokens today', value: '58.5k'},
+               {type: 'text', label: 'Replies', value: '13'}],
+}]})).entries[0];
+assert.equal(headline(tally).text, '58.5k');
 // A percent headline on a row whose label says "balance" is drawn as a percent.
 const meteredTank = parseReport(JSON.stringify({entries: [{
     id: 'deepseek', error: null,

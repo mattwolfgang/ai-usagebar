@@ -28,4 +28,5 @@ back to its `short_name` (`cmc`).
 | `antigravity.svg` | Antigravity | lobe-icons `antigravity` | MIT |
 | `kiro.svg` | Kiro | lobe-icons `kiro` | MIT |
 | `nous.svg` | Nous Research | lobe-icons `nousresearch` | MIT |
+| `ollama.svg` | Ollama Cloud, Ollama (local) | Simple Icons `ollama` (v16.34.0) | CC0-1.0 |
 | `opencode.svg` | OpenCode Go | lobe-icons `opencode` | MIT |

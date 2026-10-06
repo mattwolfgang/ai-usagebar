@@ -313,7 +313,7 @@ export function headline(entry) {
         };
     }
     for (const s of entry.sections)
-        if (s.type === 'text' && /(balance|available|spend|prepaid)/i.test(s.label) && s.value !== '')
+        if (s.type === 'text' && /(balance|available|spend|prepaid|tokens)/i.test(s.label) && s.value !== '')
             return {text: s.value, percent: null, severity: 'low', label: s.label};
     return {
         text: entry.status === 'error' ? 'Error' : 'Ready',

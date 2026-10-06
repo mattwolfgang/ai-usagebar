@@ -225,6 +225,8 @@ fn credential_present(cfg: &Config, id: VendorId, probes: &Probes) -> bool {
         | VendorId::Ollama
         | VendorId::OrcaRouter
         | VendorId::Lyceum => false,
+        // Configured once it names its server; there is no credential file.
+        VendorId::OllamaLocal => !cfg.ollama_local.server.trim().is_empty(),
     }
 }
 

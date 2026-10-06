@@ -461,6 +461,7 @@ pub enum VendorSnapshot {
     OpenCodeGo(crate::opencode_go::types::Usage),
     CommandCode(crate::commandcode::types::Snapshot),
     Ollama(OllamaSnapshot),
+    OllamaLocal(OllamaLocalSnapshot),
     OrcaRouter(OrcaRouterSnapshot),
     ModelStudio(ModelStudioSnapshot),
     Lyceum(LyceumSnapshot),
@@ -946,6 +947,105 @@ pub struct OllamaSnapshot {
 pub struct OllamaModelUsage {
     pub name: String,
     pub request_count: u64,
+}
+
+/// A self-hosted Ollama server — tokens counted today, not a quota. Local
+/// models have no limit to measure against, so this is a tally: OpenCode's
+/// own session database plus Open WebUI's admin analytics, each restricted to
+/// the models the configured server lists in `/api/tags`. See
+/// `ollama_local` for where each figure comes from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OllamaLocalSnapshot {
+    /// The server's host (`192.168.1.50`), for the title row.
+    pub server: String,
+    /// The local calendar day the tally covers.
+    pub day: chrono::NaiveDate,
+    /// One row per (source, model) with any usage that day, largest first.
+    pub models: Vec<OllamaLocalModel>,
+}
+
+/// One model's tally from one source.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OllamaLocalModel {
+    pub source: OllamaLocalSource,
+    pub model: String,
+    /// Assistant replies counted.
+    pub requests: u64,
+    /// Prompt tokens, cached prefix included.
+    pub input_tokens: u64,
+    /// Generated tokens, reasoning included.
+    pub output_tokens: u64,
+}
+
+/// Where an [`OllamaLocalModel`] row was counted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OllamaLocalSource {
+    OpenCode,
+    OpenWebUi,
+    /// The server's own usage proxy: every client, so no per-app split.
+    Server,
+}
+
+impl OllamaLocalSource {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::OpenCode => "OpenCode",
+            Self::OpenWebUi => "Open WebUI",
+            Self::Server => "Server",
+        }
+    }
+}
+
+impl OllamaLocalModel {
+    pub fn total_tokens(&self) -> u64 {
+        self.input_tokens.saturating_add(self.output_tokens)
+    }
+}
+
+impl OllamaLocalSnapshot {
+    pub fn total_tokens(&self) -> u64 {
+        self.models.iter().map(OllamaLocalModel::total_tokens).sum()
+    }
+
+    pub fn total_requests(&self) -> u64 {
+        self.models.iter().map(|m| m.requests).sum()
+    }
+
+    /// Tokens counted from one source.
+    pub fn source_tokens(&self, source: OllamaLocalSource) -> u64 {
+        self.models
+            .iter()
+            .filter(|m| m.source == source)
+            .map(OllamaLocalModel::total_tokens)
+            .sum()
+    }
+
+    /// Per-model totals across both sources, largest first, ties by name.
+    pub fn by_model(&self) -> Vec<(String, u64)> {
+        let mut totals: std::collections::BTreeMap<&str, u64> = Default::default();
+        for m in &self.models {
+            *totals.entry(m.model.as_str()).or_default() += m.total_tokens();
+        }
+        let mut rows: Vec<(String, u64)> = totals
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v))
+            .collect();
+        rows.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        rows
+    }
+}
+
+/// A token count for a narrow bar: `950`, `12.3k`, `4.56M`.
+pub fn compact_tokens(n: u64) -> String {
+    fn trim(s: String) -> String {
+        s.trim_end_matches('0').trim_end_matches('.').to_string()
+    }
+    match n {
+        0..=999 => n.to_string(),
+        1_000..=999_999 => trim(format!("{:.1}", n as f64 / 1_000.0)) + "k",
+        _ => trim(format!("{:.2}", n as f64 / 1_000_000.0)) + "M",
+    }
 }
 
 /// OpenRouter — credit balance + lifetime/daily/weekly/monthly usage from

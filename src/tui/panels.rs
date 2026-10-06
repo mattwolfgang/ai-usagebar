@@ -29,7 +29,7 @@ use crate::pango::severity_for;
 use crate::theme::Theme;
 use crate::tui::app::TabState;
 use crate::tui::style::{bubble_theme, color, progress_theme, severity_color};
-use crate::usage::VendorSnapshot;
+use crate::usage::{VendorSnapshot, compact_tokens};
 
 /// One row of the panel body. Vendors emit a `Vec<Section>`; the renderer
 /// turns them into ratatui widgets.
@@ -433,6 +433,13 @@ pub fn compact_cells(snapshot: &VendorSnapshot) -> (String, Vec<(String, PaceSev
             .collect();
             (s.plan.clone(), cells)
         }
+        VendorSnapshot::OllamaLocal(s) => (
+            s.server.clone(),
+            vec![(
+                format!("{} tok", compact_tokens(s.total_tokens())),
+                PaceSeverity::Low,
+            )],
+        ),
         VendorSnapshot::Custom(s) => (
             s.plan.clone().unwrap_or_default(),
             s.metrics
@@ -537,7 +544,8 @@ pub fn headline_pct(snapshot: &VendorSnapshot) -> Option<i32> {
         | VendorSnapshot::Novita(_)
         | VendorSnapshot::Lyceum(_)
         | VendorSnapshot::Moonshot(_)
-        | VendorSnapshot::Grok(_) => None,
+        | VendorSnapshot::Grok(_)
+        | VendorSnapshot::OllamaLocal(_) => None,
     }
 }
 
@@ -617,6 +625,7 @@ pub(crate) fn sections_with_metadata_for(
                 VendorSnapshot::OpenCodeGo(s) => opencode_go_sections(s, now, pace_tolerance),
                 VendorSnapshot::CommandCode(s) => commandcode_sections(s, now),
                 VendorSnapshot::Ollama(s) => ollama_sections(s, now, pace_tolerance),
+                VendorSnapshot::OllamaLocal(s) => ollama_local_sections(s, now),
                 VendorSnapshot::Custom(s) => custom_sections(s),
             };
             // Inject the (already-absolute) fetched-at instant into the title
@@ -1705,6 +1714,53 @@ fn ollama_sections(
                 usd_str(cost),
                 s.activity_period.as_deref().unwrap_or("last 4 weeks")
             )],
+        });
+    }
+    v
+}
+
+/// A self-hosted server's day: a token count, not a quota, so text rows and
+/// no meter. The headline row's label contains "Tokens", which is what the
+/// report-driven bars match to put a text row's value on the bar.
+fn ollama_local_sections(
+    s: &crate::usage::OllamaLocalSnapshot,
+    now: DateTime<Utc>,
+) -> SectionBuilder {
+    use crate::usage::OllamaLocalSource;
+    let mut v = SectionBuilder::new(vec![Section::Title {
+        left: format!("Ollama · {}", s.server),
+        right: None,
+    }]);
+    v.push(Section::Text {
+        label: format!("Tokens {}", crate::ollama_local::vendor::day_label(s, now)),
+        value: compact_tokens(s.total_tokens()),
+    });
+    v.push(Section::Text {
+        label: "Replies".into(),
+        value: s.total_requests().to_string(),
+    });
+    let sources: Vec<String> = [OllamaLocalSource::OpenCode, OllamaLocalSource::OpenWebUi]
+        .into_iter()
+        .filter(|src| s.models.iter().any(|m| m.source == *src))
+        .map(|src| format!("{}: {}", src.label(), compact_tokens(s.source_tokens(src))))
+        .collect();
+    if !sources.is_empty() {
+        v.push(Section::Spacer);
+        v.push(Section::Block {
+            label: "By app".into(),
+            body: sources,
+        });
+    }
+    let models = s.by_model();
+    if !models.is_empty() {
+        v.push(Section::Spacer);
+        v.push(Section::Block {
+            label: "By model".into(),
+            body: models
+                .iter()
+                .take(5)
+                .map(|(model, tokens)| format!("{model}: {}", compact_tokens(*tokens)))
+                .collect(),
         });
     }
     v
